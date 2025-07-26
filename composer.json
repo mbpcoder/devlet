@@ -1,0 +1,17 @@
+{
+    "name": "mahdi.bagheri/setup",
+    "autoload": {
+        "psr-4": {
+            "DevLet\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Mahdi Bagheri",
+            "email": "mb.programmer@yahoo.com"
+        }
+    ],
+    "require": {
+        "monolog/monolog": "^3.9"
+    }
+}
