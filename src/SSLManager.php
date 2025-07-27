@@ -28,7 +28,8 @@ final class SSLManager
         $tmpCert = "$tmpDir/$domain.pem";
         $tmpKey = "$tmpDir/$domain-key.pem";
 
-        $cmd = escapeshellcmd("mkcert -cert-file $tmpCert -key-file $tmpKey $domain");
+        $cmd = escapeshellcmd("mkcert -cert-file $tmpCert -key-file $tmpKey $domain www.$domain");
+
         exec($cmd, $out, $ret);
 
         if ($ret !== 0) {
