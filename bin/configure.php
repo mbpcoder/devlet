@@ -7,6 +7,7 @@ use DevLet\HostsManager;
 use DevLet\SSLManager;
 use DevLet\ApacheManager;
 use DevLet\DevLetConfigurator;
+use DevLet\ProjectDetector;
 use DevLet\LoggerService;
 
 
@@ -23,6 +24,8 @@ $configurator = new DevLetConfigurator(
     new HostsManager(),
     new SSLManager(),
     new ApacheManager(),
-    $logger
+    $logger,
+    new ProjectDetector(),
+
 );
 $configurator->run();

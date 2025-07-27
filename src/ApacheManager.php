@@ -11,7 +11,7 @@ final readonly class ApacheManager
         private string $stubFile = __DIR__ . '/../resources/stubs/vhost.stub'
     ) {}
 
-    public function createVhost(Project $project, string $certPath, string $keyPath, ?string $phpVersion = null): ?string
+    public function createVhost(Project $project, string $certPath, string $keyPath): ?string
     {
         // Auto-delete config if project directory no longer exists
         if (!is_dir($project->docRoot)) {
@@ -28,9 +28,6 @@ final readonly class ApacheManager
             return null;
         }
 
-        $phpVersion ??= phpversion(); // e.g. "8.3.0"
-        $phpVersion = preg_replace('/^(\d+\.\d+).*/', '$1', $phpVersion); // "8.3"
-
         $stub = file_get_contents($this->stubFile);
         if ($stub === false) {
             throw new \RuntimeException("Unable to read Apache vhost stub file.");
@@ -41,7 +38,7 @@ final readonly class ApacheManager
 
         $content = str_replace(
             ['{{domain}}', '{{docRoot}}', '{{certPath}}', '{{keyPath}}', '{{phpVersion}}'],
-            [$project->domain, $project->docRoot, $certPath, $keyPath, $phpVersion],
+            [$project->domain, $project->docRoot, $certPath, $keyPath, $project->phpVersion],
             $stub
         );
 

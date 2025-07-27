@@ -3,16 +3,15 @@ declare(strict_types=1);
 
 namespace DevLet;
 
-final class DevLetConfigurator
+final readonly class DevLetConfigurator
 {
     public function __construct(
-        private readonly string        $projectsDir,
-        private readonly HostsManager  $hostsManager,
-        private readonly SSLManager    $sslManager,
-        private readonly ApacheManager $apacheManager,
-        private readonly LoggerService $logger,
-        private readonly string        $defaultPhpPath = '/usr/bin/php' // change as needed
-    )
+        private string        $projectsDir,
+        private HostsManager  $hostsManager,
+        private SSLManager    $sslManager,
+        private ApacheManager $apacheManager,
+        private LoggerService $logger,
+        private ProjectDetector $detector)
     {
     }
 
@@ -25,12 +24,13 @@ final class DevLetConfigurator
 
         foreach ($dirs as $projectPath) {
             $domain = null;
-            $phpPath = null;
+            $phpVersion = null;
 
             $this->log('📁 Project: ' . $projectPath);
 
             $devletFile = $projectPath . '/.devlet';
             if (file_exists($devletFile)) {
+
                 $this->log('🔍 Found .devlet file');
 
                 $config = parse_ini_file($devletFile);
@@ -41,25 +41,22 @@ final class DevLetConfigurator
                     $this->log("🔗 Using domain from config: $domain");
                 }
 
-                if (isset($config['php']) && is_string($config['php']) && $this->validatePhpPath(trim($config['php']))) {
-                    $phpPath = trim($config['php']);
-                    $this->log("🧪 Using PHP from config: $phpPath");
+                if (isset($config['php']) && is_string($config['php'])) {
+                    $phpVersion = trim($config['php']);
+                    $this->log("🧪 Using PHP from config: $phpVersion");
                 }
             } else {
                 $this->log('ℹ️  No .devlet file found');
             }
 
-            $phpPath = $phpPath ?? $this->defaultPhpPath;
+            $phpVersion = $phpVersion ?? phpversion();
+
             $domain = $domain ?? $this->normalizeDomain(basename($projectPath));
 
-            if (!$this->validatePhpPath($phpPath)) {
-                $this->log("❌ Invalid PHP path: $phpPath — skipping $domain");
-                die;
-                continue;
-            }
 
-            $isLaravel = file_exists($projectPath . '/artisan');
-            $docRoot = $isLaravel ? $projectPath . '/public' : $projectPath;
+            $type = $this->detector->detect($projectPath);
+            $docRoot = $this->detector->getDocRoot($type, $projectPath);
+            $this->log("🔍 Detected project type: $type");
 
             if (!is_dir($docRoot)) {
                 $this->log("❌ Missing doc root: $docRoot — skipping $domain");
@@ -67,7 +64,7 @@ final class DevLetConfigurator
                 continue;
             }
 
-            $project = new Project($projectPath, $phpPath, $domain, $docRoot);
+            $project = new Project($projectPath, $phpVersion, $domain, $docRoot);
 
             $sslResult = $this->sslManager->generate($project->domain);
             if ($sslResult === false) {
