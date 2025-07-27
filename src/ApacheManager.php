@@ -8,7 +8,7 @@ final readonly class ApacheManager
 {
     public function __construct(
         private string $vhostsDir = '/etc/apache2/sites-available',
-        private string $stubFile = __DIR__ . '/../resources/stubs/vhost.stub'
+        private string $stubFile = __DIR__ . '/../stub/vhost.stub'
     ) {}
 
     public function createVhost(Project $project, string $certPath, string $keyPath): ?string
