@@ -6,11 +6,11 @@ namespace DevLet;
 final readonly class DevLetConfigurator
 {
     public function __construct(
-        private string        $projectsDir,
-        private HostsManager  $hostsManager,
-        private SSLManager    $sslManager,
-        private ApacheManager $apacheManager,
-        private LoggerService $logger,
+        private string          $projectsDir,
+        private HostsManager    $hostsManager,
+        private SSLManager      $sslManager,
+        private ApacheManager   $apacheManager,
+        private LoggerService   $logger,
         private ProjectDetector $detector)
     {
     }
@@ -23,36 +23,12 @@ final readonly class DevLetConfigurator
         $activeDomains = [];
 
         foreach ($dirs as $projectPath) {
-            $domain = null;
-            $phpVersion = null;
-
             $this->log('📁 Project: ' . $projectPath);
 
-            $devletFile = $projectPath . '/.devlet';
-            if (file_exists($devletFile)) {
+            $config = $this->parseDevletFile($projectPath);
 
-                $this->log('🔍 Found .devlet file');
-
-                $config = parse_ini_file($devletFile);
-
-                if (isset($config['domain']) && is_string($config['domain']) && trim($config['domain']) !== '') {
-                    $customDomain = trim($config['domain']);
-                    $domain = $this->normalizeDomain($customDomain);
-                    $this->log("🔗 Using domain from config: $domain");
-                }
-
-                if (isset($config['php']) && is_string($config['php'])) {
-                    $phpVersion = trim($config['php']);
-                    $this->log("🧪 Using PHP from config: $phpVersion");
-                }
-            } else {
-                $this->log('ℹ️  No .devlet file found');
-            }
-
-            $phpVersion = $phpVersion ?? phpversion();
-
-            $domain = $domain ?? $this->normalizeDomain(basename($projectPath));
-
+            $domain = $config['domain'] ?? $this->normalizeDomain(basename($projectPath));
+            $phpVersion = $config['php'] ?? $this->detectPhpVersionFromComposer($projectPath) ?? phpversion();
 
             $type = $this->detector->detect($projectPath);
             $docRoot = $this->detector->getDocRoot($type, $projectPath);
@@ -60,7 +36,6 @@ final readonly class DevLetConfigurator
 
             if (!is_dir($docRoot)) {
                 $this->log("❌ Missing doc root: $docRoot — skipping $domain");
-                die;
                 continue;
             }
 
@@ -69,9 +44,7 @@ final readonly class DevLetConfigurator
             $sslResult = $this->sslManager->generate($project->domain);
             if ($sslResult === false) {
                 $this->log("❌ SSL failed for {$project->domain} — skipping");
-                die;
                 continue;
-
             }
 
             [$certPath, $keyPath] = $sslResult;
@@ -82,14 +55,9 @@ final readonly class DevLetConfigurator
             $this->log("✅ Configured: {$project->domain}\n");
 
             $activeDomains[] = $project->domain;
-
-            var_dump($activeDomains);
-
-            $this->hostsManager->syncEntries($activeDomains);
-
-            die;
         }
 
+        $this->hostsManager->syncEntries($activeDomains);
 
         $this->log("✅ Hosts file updated with active domains.");
 
@@ -97,9 +65,53 @@ final readonly class DevLetConfigurator
         $this->log("🔁 Apache restarted.");
     }
 
-    private function validatePhpPath(string $phpPath): bool
+    private function parseDevletFile(string $projectPath): array
     {
-        return is_file($phpPath) && is_executable($phpPath);
+        $config = [];
+        $file = $projectPath . '/.devlet';
+
+        if (!file_exists($file)) {
+            return $config;
+        }
+
+        $this->log('🔍 Found .devlet file');
+        $ini = parse_ini_file($file);
+
+        if (isset($ini['domain']) && is_string($ini['domain']) && trim($ini['domain']) !== '') {
+            $config['domain'] = $this->normalizeDomain(trim($ini['domain']));
+            $this->log("🔗 Using domain from config: {$config['domain']}");
+        }
+
+        if (isset($ini['php']) && is_string($ini['php'])) {
+            $config['php'] = trim($ini['php']);
+            $this->log("🧪 Using PHP from config: {$config['php']}");
+        }
+
+        return $config;
+    }
+
+    private function detectPhpVersionFromComposer(string $projectPath): ?string
+    {
+        $composerFile = $projectPath . '/composer.json';
+        if (!file_exists($composerFile)) {
+            return null;
+        }
+
+        $json = json_decode(file_get_contents($composerFile), true);
+        if (!isset($json['require']['php'])) {
+            return null;
+        }
+
+        $phpConstraint = $json['require']['php'];
+        preg_match('/(\d+\.\d+)/', $phpConstraint, $matches);
+        if (!isset($matches[1])) {
+            return null;
+        }
+
+        $version = $matches[1];
+        $this->log("🧪 Detected PHP version from composer.json: $version");
+
+        return $version;
     }
 
     private function normalizeDomain(string $name): string
