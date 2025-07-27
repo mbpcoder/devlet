@@ -9,7 +9,7 @@ use DevLet\ApacheManager;
 use DevLet\DevLetConfigurator;
 use DevLet\LoggerService;
 
-// Change this to your projects directory
+
 $projectsPath = '/mnt/c/Users/mahdi.bagheri/Documents/Projects';
 
 $hostsManager = new HostsManager();
