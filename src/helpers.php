@@ -1,5 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
+function config(string $key): array
+{
+    static $config = null;
+
+    if ($config === null) {
+        $config = require './../src/config/dependencies.php';
+    }
+
+    return $config[$key] ?? [];
+}
 
 function isRunningInWSL(): bool
 {

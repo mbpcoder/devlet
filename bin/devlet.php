@@ -1,31 +1,18 @@
 <?php
 declare(strict_types=1);
 
+
 require __DIR__ . '/../vendor/autoload.php';
 
-use DevLet\HostsManager;
-use DevLet\SSLManager;
-use DevLet\ApacheManager;
-use DevLet\DevLetConfigurator;
-use DevLet\ProjectDetector;
-use DevLet\LoggerService;
+use Symfony\Component\Console\Application;
+use DevLet\Commands\InitOSCommand;
+use DevLet\Commands\VerifyOSCommand;
+use DevLet\Commands\ConfigureWebServerCommand;
 
+$application = new Application('DevLet CLI', '1.0.0');
 
-$projectsPath = '/mnt/c/Users/mahdi.bagheri/Documents/Projects';
+$application->add(new InitOSCommand());
+$application->add(new VerifyOSCommand());
+$application->add(new ConfigureWebServerCommand());
 
-$hostsManager = new HostsManager();
-$sslManager = new SSLManager();
-$apacheManager = new ApacheManager();
-
-$logger = new LoggerService(__DIR__ . '/../devlet.log');
-
-$configurator = new DevLetConfigurator(
-    $projectsPath,
-    new HostsManager(),
-    new SSLManager(),
-    new ApacheManager(),
-    $logger,
-    new ProjectDetector(),
-
-);
-$configurator->run();
+$application->run();
