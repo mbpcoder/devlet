@@ -1,44 +1,59 @@
 <?php
+
 declare(strict_types=1);
 
 namespace DevLet;
 
 final class HostsManager
 {
-    private string $hostsFile;
+    private const string COMMENT_TAG = '#devlet';
+    private const string LOCALHOST_IP = '127.0.0.1';
 
-    public function __construct(string $hostsFile = '/etc/hosts')
+    public function __construct(
+        private readonly string $hostsFile = '/etc/hosts',
+        private readonly string $wslHostFile = '/mnt/c/Windows/System32/drivers/etc/hosts'
+    )
     {
-        $this->hostsFile = $hostsFile;
     }
 
-    public function syncEntries(array $currentDomains): void
+    /**
+     * @param string[] $domains List of base domains like ['abb.local', 'site.test']
+     */
+    public function syncEntries(array $domains): void
     {
-        $lines = file($this->hostsFile, FILE_IGNORE_NEW_LINES);
-        $existingDevletEntries = [];
+        $this->syncFileEntries($this->hostsFile, $domains, ip: self::LOCALHOST_IP);
+
+        if (isRunningInWSL()) {
+            $wslIp = getWslIp();
+            if ($wslIp) {
+                $this->syncFileEntries($this->wslHostFile, $domains, ip: $wslIp);
+            }
+        }
+    }
+
+    /**
+     * @param string[] $domains Flat list of base domains
+     */
+    private function syncFileEntries(string $path, array $domains, string $ip): void
+    {
+        if (!is_file($path) || !is_readable($path) || !is_writable($path)) {
+            throw new \RuntimeException("Cannot access or modify hosts file: $path");
+        }
+
+        $lines = file($path, FILE_IGNORE_NEW_LINES) ?: [];
         $newLines = [];
 
         foreach ($lines as $line) {
-            if (str_contains($line, '#devlet')) {
-                preg_match('/^\s*127\.0\.0\.1\s+([^\s]+)\s+#devlet/', $line, $matches);
-                if (!empty($matches[1])) {
-                    $existingDevletEntries[$matches[1]] = $line;
-                }
-                // Skip old entry for now
-                continue;
+            if (!str_contains($line, self::COMMENT_TAG)) {
+                $newLines[] = $line;
             }
-            $newLines[] = $line; // Preserve all non-devlet lines
         }
 
-        // Determine what to keep
-        foreach ($currentDomains as $domain) {
-            $entry = "127.0.0.1 $domain #devlet";
-            unset($existingDevletEntries[$domain]);
-            $newLines[] = $entry;
+        foreach ($domains as $domain) {
+            $line = "$ip $domain www.$domain " . self::COMMENT_TAG;
+            $newLines[] = $line;
         }
 
-        // Any remaining in $existingDevletEntries are stale — skipped intentionally (removed)
-
-        file_put_contents($this->hostsFile, implode(PHP_EOL, $newLines) . PHP_EOL);
+        file_put_contents($path, implode(PHP_EOL, $newLines) . PHP_EOL);
     }
 }

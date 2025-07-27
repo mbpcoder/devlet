@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace DevLet;
@@ -6,44 +7,46 @@ namespace DevLet;
 final readonly class ApacheManager
 {
     public function __construct(
-        private string $vhostsDir = '/etc/apache2/sites-available'
-    )
-    {
-    }
+        private string $vhostsDir = '/etc/apache2/sites-available',
+        private string $stubFile = __DIR__ . '/../resources/stubs/vhost.stub'
+    ) {}
 
-    public function createVhost(Project $project, string $certPath, string $keyPath): string
+    public function createVhost(Project $project, string $certPath, string $keyPath, ?string $phpVersion = null): ?string
     {
-        $fileName = $project->domain . '.conf';
+        // Auto-delete config if project directory no longer exists
+        if (!is_dir($project->docRoot)) {
+            $autoFileName = 'devlet-auto-' . $project->domain . '.conf';
+            $autoFilePath = $this->vhostsDir . '/' . $autoFileName;
+
+            if (file_exists($autoFilePath)) {
+                unlink($autoFilePath);
+                echo "❌ Project directory missing. Deleted: $autoFilePath\n";
+            } else {
+                echo "⚠️ Project directory missing. No config to delete for: {$project->domain}\n";
+            }
+
+            return null;
+        }
+
+        $phpVersion ??= phpversion(); // e.g. "8.3.0"
+        $phpVersion = preg_replace('/^(\d+\.\d+).*/', '$1', $phpVersion); // "8.3"
+
+        $stub = file_get_contents($this->stubFile);
+        if ($stub === false) {
+            throw new \RuntimeException("Unable to read Apache vhost stub file.");
+        }
+
+        $fileName = 'devlet-auto-' . $project->domain . '.conf';
         $filePath = $this->vhostsDir . '/' . $fileName;
 
-        $content = <<<APACHE
-<VirtualHost *:80>
-    ServerName {$project->domain}
-    Redirect permanent / https://{$project->domain}/
-</VirtualHost>
-
-<VirtualHost *:443>
-    ServerName {$project->domain}
-
-    DocumentRoot "{$project->docRoot}"
-
-    SSLEngine on
-    SSLCertificateFile $certPath
-    SSLCertificateKeyFile $keyPath
-
-    <Directory "{$project->docRoot}">
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    ErrorLog \${APACHE_LOG_DIR}/{$project->domain}-error.log
-    CustomLog \${APACHE_LOG_DIR}/{$project->domain}-access.log combined
-</VirtualHost>
-APACHE;
+        $content = str_replace(
+            ['{{domain}}', '{{docRoot}}', '{{certPath}}', '{{keyPath}}', '{{phpVersion}}'],
+            [$project->domain, $project->docRoot, $certPath, $keyPath, $phpVersion],
+            $stub
+        );
 
         file_put_contents($filePath, $content);
-        echo "Created Apache vhost config: $filePath\n";
+        echo "✅ Created Apache vhost config: $filePath\n";
 
         return $fileName;
     }
@@ -52,11 +55,11 @@ APACHE;
     {
         exec("a2ensite $siteConf", $out, $ret);
         if ($ret === 0) {
-            echo "Enabled site $siteConf\n";
+            echo "✅ Enabled site $siteConf\n";
             return true;
         }
 
-        echo "Failed to enable site $siteConf\n";
+        echo "❌ Failed to enable site $siteConf\n";
         return false;
     }
 
@@ -64,10 +67,11 @@ APACHE;
     {
         exec("systemctl restart apache2", $out, $ret);
         if ($ret === 0) {
-            echo "Apache restarted successfully\n";
+            echo "🔁 Apache restarted successfully\n";
             return true;
         }
-        echo "Failed to restart Apache\n";
+
+        echo "❌ Failed to restart Apache\n";
         return false;
     }
 }
