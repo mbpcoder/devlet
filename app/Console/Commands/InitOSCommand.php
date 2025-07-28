@@ -3,43 +3,32 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Process;
 
 class InitOSCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'devlet:os-init';
+    protected $signature = 'devlet:os-install';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Installing Packages and Dependencies';
 
-    /**
-     * Execute the console command.
-     * @throws \Throwable
-     */
     public function handle()
     {
         $packageManager = $this->detectPackageManager();
 
-        $basePackages = config('dependencies.base_packages');
-        $apacheModules = config('dependencies.apache_modules');
+        $basePackages = config('devlet.dependencies.base_packages');
+        $apacheModules = config('devlet.dependencies.apache_modules');
 
         $this->info("🔧 Installing packages: " . implode(', ', $basePackages));
 
         $installCmd = $this->buildInstallCommand($packageManager, $basePackages);
 
         $this->info("▶ Running install command: $installCmd");
-        exec($installCmd, $outputLines, $status);
 
-        if ($status !== 0) {
-            $this->error('Failed to install packages');
+        $result = Process::run($installCmd);
+
+        if (!$result->successful()) {
+            $this->error('❌ Failed to install packages:');
+            $this->error($result->errorOutput());
             return self::FAILURE;
         }
 
@@ -48,30 +37,39 @@ class InitOSCommand extends Command
             foreach ($apacheModules as $module) {
                 $cmd = "a2enmod $module";
                 $this->info("▶ Enabling Apache module: $module");
-                exec($cmd, $out, $ret);
-                if ($ret !== 0) {
-                    $this->error("Failed to enable Apache module $module");
+
+                $enableResult = Process::run($cmd);
+
+                if (!$enableResult->successful()) {
+                    $this->error("❌ Failed to enable Apache module $module");
+                    $this->error($enableResult->errorOutput());
                 }
             }
-            // Reload Apache
-            exec('systemctl reload apache2');
+
+            $reloadResult = Process::run('systemctl reload apache2');
+
+            if (!$reloadResult->successful()) {
+                $this->error("❌ Failed to reload Apache:");
+                $this->error($reloadResult->errorOutput());
+            } else {
+                $this->info("🔄 Apache reloaded successfully.");
+            }
+
         } elseif ($packageManager === 'yum') {
-            // For yum (e.g. CentOS), enabling Apache modules differs; generally, modules are loaded in config files.
-            // You might want to write logic to ensure required modules are enabled or leave instructions.
-            $this->info("Ensure Apache modules {$apacheModules} are enabled manually on yum-based systems.");
+            $this->info("⚠️ Ensure Apache modules " . implode(', ', $apacheModules) . " are enabled manually on yum-based systems.");
         }
 
-        $this->info("Initialization completed successfully!");
+        $this->info("✅ Initialization completed successfully!");
         return self::SUCCESS;
     }
 
     private function detectPackageManager(): string
     {
-        if (shell_exec('command -v apt-get')) {
+        if (Process::run('command -v apt-get')->successful()) {
             return 'apt';
         }
 
-        if (shell_exec('command -v yum')) {
+        if (Process::run('command -v yum')->successful()) {
             return 'yum';
         }
 
@@ -87,7 +85,7 @@ class InitOSCommand extends Command
         }
 
         if ($packageManager === 'yum') {
-            return "yum install -y $packagesString";
+            return "yum update -y && yum install -y $packagesString";
         }
 
         throw new \RuntimeException("Unsupported package manager");

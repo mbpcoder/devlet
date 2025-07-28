@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Project;
+use Illuminate\Support\Facades\Process;
 
 final class ApacheService
 {
@@ -18,10 +19,8 @@ final class ApacheService
         $this->vhostPrefix = config('devlet.vhost_prefix');
     }
 
-
     public function createVhost(Project $project, string $certPath, string $keyPath): ?string
     {
-        // Auto-delete config if project directory no longer exists
         if (!is_dir($project->docRoot)) {
             $autoFileName = $this->vhostPrefix . $project->domain . '.conf';
             $autoFilePath = $this->vhostsDir . '/' . $autoFileName;
@@ -58,25 +57,29 @@ final class ApacheService
 
     public function enableSite(string $siteConf): bool
     {
-        exec("a2ensite $siteConf", $out, $ret);
-        if ($ret === 0) {
+        $result = Process::run("a2ensite " . escapeshellarg($siteConf));
+
+        if ($result->successful()) {
             echo "✅ Enabled site $siteConf\n";
             return true;
         }
 
         echo "❌ Failed to enable site $siteConf\n";
+        echo $result->errorOutput();
         return false;
     }
 
     public function restartApache(): bool
     {
-        exec("systemctl restart apache2", $out, $ret);
-        if ($ret === 0) {
+        $result = Process::run('systemctl restart apache2');
+
+        if ($result->successful()) {
             echo "🔁 Apache restarted successfully\n";
             return true;
         }
 
         echo "❌ Failed to restart Apache\n";
+        echo $result->errorOutput();
         return false;
     }
 }

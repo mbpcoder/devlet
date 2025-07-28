@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Exceptions\SSLGenerationException;
 use App\Models\Project;
 use App\Services\ApacheService;
 use App\Services\HostsService;
@@ -59,15 +60,16 @@ class ConfigureWebServerCommand extends Command
                 $this->info("🔍 Detected project type: $type");
 
                 if (!is_dir($docRoot)) {
-                    $this->info("❌ Missing doc root: $docRoot — skipping $domain");
+                    $this->error("❌ Missing doc root: $docRoot — skipping $domain");
                     continue;
                 }
 
                 $project = new Project($projectPath, $phpVersion, $domain, $docRoot);
 
-                $sslResult = $this->sslService->generate($project->domain);
-                if ($sslResult === false) {
-                    $this->info("❌ SSL failed for {$project->domain} — skipping");
+                try {
+                    $sslResult = $this->sslService->generate($project->domain);
+                } catch (SSLGenerationException $e) {
+                    $this->error("❌ SSL failed for {$project->domain} — skipping");
                     continue;
                 }
 

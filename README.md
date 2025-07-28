@@ -87,32 +87,6 @@ a2enmod ssl
 a2enmod proxy
 a2enmod proxy_fcgi
 ```
-
-### PHP-FPM
-
-Ensure PHP-FPM is installed and running, e.g., `/run/php/php8.2-fpm.sock`.
-
-You can install multiple PHP versions using:
-
-```bash
-sudo apt install php8.2-fpm php8.3-fpm ...
-```
-
-### mkcert
-
-Install `mkcert` for local SSL generation:
-
-```bash
-# macOS (brew)
-brew install mkcert
-mkcert -install
-
-# Ubuntu (via go)
-sudo apt install libnss3-tools
-go install filippo.io/mkcert@latest
-mkcert -install
-```
-
 ---
 
 ## 🔧 How It Works

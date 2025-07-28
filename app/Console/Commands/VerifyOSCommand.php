@@ -27,8 +27,8 @@ class VerifyOSCommand extends Command
     {
         $packageManager = $this->detectPackageManager();
 
-        $basePackages = config('dependencies.base_packages');
-        $apacheModules = config('dependencies.apache_modules');
+        $basePackages = config('devlet.dependencies.base_packages');
+        $apacheModules = config('devlet.dependencies.apache_modules');
 
         $dependencies = $basePackages;
 
@@ -38,7 +38,7 @@ class VerifyOSCommand extends Command
             if ($this->isPackageInstalled($packageManager, $package)) {
                 $this->info("✔ Package installed: $package");
             } else {
-                $this->info("<error>✘ Package missing: $package</error>");
+                $this->error("✘ Package missing: $package");
                 $allOk = false;
             }
         }
@@ -49,12 +49,12 @@ class VerifyOSCommand extends Command
                 if ($this->isApacheModuleEnabled($module)) {
                     $this->info("✔ Apache module enabled: $module");
                 } else {
-                    $this->info("<error>✘ Apache module disabled: $module</error>");
+                    $this->error("✘ Apache module disabled: $module");
                     $allOk = false;
                 }
             }
         } else {
-            $this->info("<info>Apache module check is only implemented for apt-based systems.</info>");
+            $this->info("Apache module check is only implemented for apt-based systems.");
         }
 
         return $allOk ? \Symfony\Component\Console\Command\Command::SUCCESS : Command::FAILURE;
