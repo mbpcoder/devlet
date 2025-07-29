@@ -4,6 +4,7 @@ namespace App\Channels\OperationSystems;
 
 interface IOperationSystem
 {
+    public function install(array $applications);
 
     public function startService(string $name): true;
 

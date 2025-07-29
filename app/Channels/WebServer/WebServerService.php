@@ -26,11 +26,16 @@ readonly class WebServerService implements IWebServer
             $name = config('devlet.webserver', 'apache');
         }
 
-       return match ($name) {
+        return match ($name) {
             'apache' => new Apache($this->os),
             'nginx' => new Nginx($this->os),
             default => throw new InvalidArgumentException("Unsupported web server driver: {$name}"),
         };
+    }
+
+    public function enableModules(array $modules): true
+    {
+        return $this->webServer->enableModules($modules);
     }
 
     public function start(): true
@@ -67,6 +72,4 @@ readonly class WebServerService implements IWebServer
     {
         return $this->webServer->name();
     }
-
-
 }

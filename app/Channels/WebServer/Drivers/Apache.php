@@ -13,6 +13,14 @@ class Apache implements IWebServer
     {
     }
 
+    public function enableModules(array $modules): true
+    {
+        if (empty($modules)) {
+            return true;
+        }
+        return $this->os->enableApacheModules($modules);
+    }
+
     public function start(): true
     {
         return $this->os->startService('apache2');

@@ -26,4 +26,9 @@ class Windows implements IOperationSystem
     {
         return true;
     }
+
+    public function install(array $applications)
+    {
+        // TODO: Implement install() method.
+    }
 }

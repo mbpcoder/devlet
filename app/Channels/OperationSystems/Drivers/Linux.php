@@ -8,6 +8,50 @@ use RuntimeException;
 
 class Linux implements IOperationSystem
 {
+    public function install(array $applications): bool
+    {
+        if (empty($applications)) {
+            return true;
+        }
+        $packageManager = $this->detectPackageManager();
+        $installCmd = $this->buildInstallCommand($packageManager, $applications);
+
+        $result = Process::run($installCmd);
+
+        if ($result->failed()) {
+            $result->throw();
+        }
+        return true;
+    }
+
+    private function detectPackageManager(): string
+    {
+        if (Process::run('command -v apt-get')->successful()) {
+            return 'apt';
+        }
+
+        if (Process::run('command -v yum')->successful()) {
+            return 'yum';
+        }
+
+        throw new \RuntimeException("Unsupported package manager");
+    }
+
+    private function buildInstallCommand(string $packageManager, array $packages): string
+    {
+        $packagesString = implode(' ', $packages);
+
+        if ($packageManager === 'apt') {
+            return "apt-get update && apt-get install -y $packagesString";
+        }
+
+        if ($packageManager === 'yum') {
+            return "yum update -y && yum install -y $packagesString";
+        }
+
+        throw new \RuntimeException("Unsupported package manager");
+    }
+
     public function startService(string $name): true
     {
         return $this->runServiceCommand('start', $name);

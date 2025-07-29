@@ -4,6 +4,8 @@ namespace App\Channels\WebServer;
 
 interface IWebServer
 {
+    public function enableModules(array $modules);
+
     public function start(): true;
 
     public function stop(): true;

@@ -6,39 +6,43 @@ use App\Channels\WebServer\IWebServer;
 
 class Nginx implements IWebServer
 {
-
-    public function start(): void
+    public function enableModules(array $modules)
     {
-        // TODO: Implement start() method.
+        return true;
     }
 
-    public function stop(): void
+    public function start(): true
     {
-        // TODO: Implement stop() method.
+        return true;
     }
 
-    public function restart(): void
+    public function stop(): true
     {
-        // TODO: Implement restart() method.
+        return true;
+    }
+
+    public function restart(): true
+    {
+        return true;
     }
 
     public function status(): string
     {
-        // TODO: Implement status() method.
+        return "";
     }
 
     public function isRunning(): bool
     {
-        // TODO: Implement isRunning() method.
+        return true;
     }
 
     public function name(): string
     {
-        // TODO: Implement name() method.
+        return 'nginx';
     }
 
-    public function reload(): void
+    public function reload(): true
     {
-        // TODO: Implement reload() method.
+        return true;
     }
 }
