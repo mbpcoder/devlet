@@ -13,7 +13,18 @@ Define PHP_VERSION "{{phpVersion}}"
         Require all granted
     </Directory>
 
-    # Note: HTTPS redirect is intentionally disabled
+    # PHP-FPM integration for HTTP
+    <FilesMatch \.php$>
+        SetHandler "proxy:unix:/run/php/php${PHP_VERSION}-fpm.sock|fcgi://localhost/"
+    </FilesMatch>
+
+    # Optional: redirect www to non-www on HTTP too (remove if you don't want this)
+    RewriteEngine On
+    RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+    RewriteRule ^ http://%1%{REQUEST_URI} [L,R=301]
+
+    ErrorLog ${APACHE_LOG_DIR}/${SITE}-http-error.log
+    CustomLog ${APACHE_LOG_DIR}/${SITE}-http-access.log combined
 </VirtualHost>
 
 <VirtualHost *:443>
@@ -41,6 +52,6 @@ Define PHP_VERSION "{{phpVersion}}"
         SetHandler "proxy:unix:/run/php/php${PHP_VERSION}-fpm.sock|fcgi://localhost/"
     </FilesMatch>
 
-    ErrorLog ${APACHE_LOG_DIR}/${SITE}-error.log
-    CustomLog ${APACHE_LOG_DIR}/${SITE}-access.log combined
+    ErrorLog ${APACHE_LOG_DIR}/${SITE}-https-error.log
+    CustomLog ${APACHE_LOG_DIR}/${SITE}-https-access.log combined
 </VirtualHost>
