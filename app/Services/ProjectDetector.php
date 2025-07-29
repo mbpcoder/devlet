@@ -27,14 +27,16 @@ final readonly class ProjectDetector
         return 'unknown';
     }
 
-    public function getDocRoot(string $type, string $projectPath): string
+    public function getDocRoot(string $type, string $projectPath, string|null $publicPath): string
     {
-        return match ($type) {
-            'laravel'     => $projectPath . '/public',
-            'wordpress'   => $projectPath,
-            'symfony'     => $projectPath . '/public',
-            'codeigniter' => $projectPath,
-            default       => $projectPath,
-        };
+        if ($publicPath === null) {
+            $publicPath = match (strtolower($type)) {
+                'laravel', 'symfony' => '/public',
+                'wordpress', 'codeigniter' => '/',
+                default => '/',
+            };
+        }
+
+        return  rtrim($projectPath, DIRECTORY_SEPARATOR). $publicPath;
     }
 }

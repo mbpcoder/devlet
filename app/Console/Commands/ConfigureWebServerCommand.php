@@ -31,16 +31,6 @@ class ConfigureWebServerCommand extends Command
         $this->apacheService = new ApacheService();
         $this->detector = new ProjectDetector();
 
-
-        $this->run2();
-
-        $this->info('Web server configuration completed');
-
-        return self::SUCCESS;
-    }
-
-    public function run2()
-    {
         $activeDomains = [];
 
         foreach ($this->vHostRoots as $vHostRoot) {
@@ -48,15 +38,26 @@ class ConfigureWebServerCommand extends Command
             sort($dirs, SORT_NATURAL | SORT_FLAG_CASE); // Alphabetical, case-insensitive
 
             foreach ($dirs as $projectPath) {
+
+                if (!str_contains($projectPath, 'ovh')) {
+                    continue;
+                }
+
                 $this->info('📁 Project: ' . $projectPath);
 
                 $config = $this->parseDevletFile($projectPath);
 
-                $domain = $config['domain'] ?? $this->normalizeDomain(basename($projectPath));
                 $phpVersion = $config['php'] ?? $this->detectPhpVersionFromComposer($projectPath) ?? phpversion();
+                $domain = $config['domain'] ?? $this->normalizeDomain(basename($projectPath));
 
                 $type = $this->detector->detect($projectPath);
-                $docRoot = $this->detector->getDocRoot($type, $projectPath);
+                $docRoot = $this->detector->getDocRoot($type, $projectPath, $config['public_path']);
+
+                if (str_contains($projectPath, 'ovh')) {
+                    dd($config, $docRoot);
+                }
+
+
                 $this->info("🔍 Detected project type: $type");
 
                 if (!is_dir($docRoot)) {
@@ -91,16 +92,24 @@ class ConfigureWebServerCommand extends Command
         $this->apacheService->restartApache();
         $this->info("🔁 Apache restarted.");
 
+        $this->info('Web server configuration completed');
+
+        return self::SUCCESS;
     }
 
     private function parseDevletFile(string $projectPath): array
     {
-        $config = [];
+        $config = [
+            'php' => null,
+            'domain' => null,
+            'public_path' => null,
+        ];
         $file = $projectPath . '/.devlet';
 
         if (!file_exists($file)) {
             return $config;
         }
+
 
         $this->info('🔍 Found .devlet file');
         $ini = parse_ini_file($file);
@@ -115,8 +124,14 @@ class ConfigureWebServerCommand extends Command
             $this->info("🧪 Using PHP from config: {$config['php']}");
         }
 
+        if (isset($ini['public_path']) && is_string($ini['public_path']) && trim($ini['public_path']) !== '') {
+            $config['public_path'] = trim($ini['public_path']);
+            $this->info("📂 Using public path from config: {$config['public_path']}");
+        }
+
         return $config;
     }
+
 
     private function detectPhpVersionFromComposer(string $projectPath): ?string
     {
