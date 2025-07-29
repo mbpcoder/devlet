@@ -13,8 +13,7 @@ Define PHP_VERSION "{{phpVersion}}"
         Require all granted
     </Directory>
 
-    # Redirect to HTTPS
-    Redirect permanent / https://${SITE}/
+    # Note: HTTPS redirect is intentionally disabled
 </VirtualHost>
 
 <VirtualHost *:443>
