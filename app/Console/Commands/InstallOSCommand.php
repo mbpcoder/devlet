@@ -2,14 +2,22 @@
 
 namespace App\Console\Commands;
 
+use App\Channels\WebServer\WebServerService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Process;
 
-class InitOSCommand extends Command
+class InstallOSCommand extends Command
 {
     protected $signature = 'devlet:os-install';
 
     protected $description = 'Installing Packages and Dependencies';
+
+    public function __construct(
+        private readonly WebServerService $webServerService
+    )
+    {
+        parent::__construct();
+    }
 
     public function handle()
     {
@@ -46,14 +54,15 @@ class InitOSCommand extends Command
                 }
             }
 
-            $reloadResult = Process::run('systemctl reload apache2');
 
-            if (!$reloadResult->successful()) {
-                $this->error("❌ Failed to reload Apache:");
-                $this->error($reloadResult->errorOutput());
+            if ($this->webServerService->isRunning()) {
+                $this->webServerService->reload();
+                $this->info('✅ Web Server is successfully reloaded.');
             } else {
-                $this->info("🔄 Apache reloaded successfully.");
+                $this->webServerService->start();
+                $this->info('✅ Web Server is successfully started.');
             }
+
 
         } elseif ($packageManager === 'yum') {
             $this->info("⚠️ Ensure Apache modules " . implode(', ', $apacheModules) . " are enabled manually on yum-based systems.");
