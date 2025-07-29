@@ -39,10 +39,6 @@ class ConfigureWebServerCommand extends Command
 
             foreach ($dirs as $projectPath) {
 
-                if (!str_contains($projectPath, 'ovh')) {
-                    continue;
-                }
-
                 $this->info('📁 Project: ' . $projectPath);
 
                 $config = $this->parseDevletFile($projectPath);
@@ -52,11 +48,6 @@ class ConfigureWebServerCommand extends Command
 
                 $type = $this->detector->detect($projectPath);
                 $docRoot = $this->detector->getDocRoot($type, $projectPath, $config['public_path']);
-
-                if (str_contains($projectPath, 'ovh')) {
-                    dd($config, $docRoot);
-                }
-
 
                 $this->info("🔍 Detected project type: $type");
 
