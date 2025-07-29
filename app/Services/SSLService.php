@@ -9,102 +9,106 @@ use Illuminate\Support\Facades\Process;
 
 final class SSLService
 {
-
-    public function generate(string $domain): array|false
+    public function generate(string $domain): array
     {
-        $certPath = "/etc/ssl/certs/$domain.pem";
-        $keyPath = "/etc/ssl/private/$domain-key.pem";
+        $certPath = "/etc/ssl/certs/{$domain}.pem";
+        $keyPath  = "/etc/ssl/private/{$domain}-key.pem";
 
         if (file_exists($certPath) && file_exists($keyPath)) {
+            $this->output("✅ SSL certificate already exists for {$domain}");
             return [$certPath, $keyPath];
         }
 
-        // Check if mkcert is installed
-        if (!Process::run('command -v mkcert')->successful()) {
-            throw new SSLGenerationException("mkcert is not installed.");
+        $this->ensureMkcertInstalled();
+
+        if ($this->isWSL()) {
+            $this->syncRootCAFromWindows();
         }
 
+        $this->prepareDirectory($certPath, 0755);
+        $this->prepareDirectory($keyPath, 0700);
 
-        if (!is_dir(dirname($certPath))) {
-            mkdir(dirname($certPath), 0755, true);
-        }
+        $tmpDir   = sys_get_temp_dir();
+        $tmpCert  = "{$tmpDir}/{$domain}.pem";
+        $tmpKey   = "{$tmpDir}/{$domain}-key.pem";
 
-        if (!is_dir(dirname($keyPath))) {
-            mkdir(dirname($keyPath), 0700, true);
-        }
-
-        $tmpDir = sys_get_temp_dir();
-        $tmpCert = "$tmpDir/$domain.pem";
-        $tmpKey = "$tmpDir/$domain-key.pem";
-
-        $cmd = "mkcert -cert-file $tmpCert -key-file $tmpKey $domain www.$domain";
-
-        $result = Process::run($cmd);
+        $command = "mkcert -cert-file {$tmpCert} -key-file {$tmpKey} {$domain} www.{$domain}";
+        $result  = Process::run($command);
 
         if (!$result->successful()) {
-            throw new SSLGenerationException("mkcert command failed: " . $result->errorOutput());
+            throw new SSLGenerationException("❌ mkcert failed:\n" . $result->errorOutput());
         }
 
         if (!rename($tmpCert, $certPath) || !rename($tmpKey, $keyPath)) {
-            throw new SSLGenerationException("Failed to move generated cert/key to final location.");
+            throw new SSLGenerationException("❌ Failed to move certs to final destination.");
         }
 
         chmod($certPath, 0644);
         chmod($keyPath, 0600);
+
+        $this->output("✅ SSL certificate generated for {$domain}");
 
         return [$certPath, $keyPath];
     }
 
-    public function generate2(string $domain): array|false
+    private function ensureMkcertInstalled(): void
     {
-        $certPath = "/etc/ssl/certs/$domain.pem";
-        $keyPath = "/etc/ssl/private/$domain-key.pem";
+        if (!Process::run('command -v mkcert')->successful()) {
+            throw new SSLGenerationException("❌ mkcert is not installed. Please install it first.");
+        }
+    }
 
-        if (file_exists($certPath) && file_exists($keyPath)) {
-            echo "✅ SSL cert already exists for $domain\n";
-            return [$certPath, $keyPath];
+    private function isWSL(): bool
+    {
+        return str_contains(file_get_contents('/proc/version'), 'Microsoft');
+    }
+
+    private function syncRootCAFromWindows(): void
+    {
+        $linuxCAPath = getenv('HOME') . '/.local/share/mkcert/rootCA.pem';
+        if (file_exists($linuxCAPath)) {
+            return;
         }
 
-        // Check if mkcert is available
-        $check = Process::run('command -v mkcert');
+        $windowsUser = $this->detectWindowsUser();
+        $windowsCAPath = "/mnt/c/Users/{$windowsUser}/AppData/Local/mkcert";
 
-        if (!$check->successful()) {
-            echo "❌ mkcert not installed. Please install mkcert.\n";
-            return false;
+        if (!file_exists("{$windowsCAPath}/rootCA.pem")) {
+            $this->output("⚠️ Could not find root CA in Windows. Please run `mkcert -install` in Windows first.");
+            return;
         }
 
-        if (!is_dir(dirname($certPath))) {
-            mkdir(dirname($certPath), 0755, true);
+        @mkdir(dirname($linuxCAPath), 0700, true);
+
+        copy("{$windowsCAPath}/rootCA.pem", $linuxCAPath);
+        copy("{$windowsCAPath}/rootCA-key.pem", str_replace('rootCA.pem', 'rootCA-key.pem', $linuxCAPath));
+
+        $this->output("📥 Copied root CA from Windows to WSL.");
+    }
+
+    private function detectWindowsUser(): string
+    {
+        $users = scandir('/mnt/c/Users');
+        foreach ($users as $user) {
+            if ($user === '.' || $user === '..') continue;
+            if (is_dir("/mnt/c/Users/{$user}/AppData/Local/mkcert")) {
+                return $user;
+            }
         }
 
-        if (!is_dir(dirname($keyPath))) {
-            mkdir(dirname($keyPath), 0700, true);
+        throw new SSLGenerationException("❌ Could not detect Windows user with mkcert installed.");
+    }
+
+    private function prepareDirectory(string $filePath, int $mode): void
+    {
+        $dir = dirname($filePath);
+        if (!is_dir($dir)) {
+            mkdir($dir, $mode, true);
         }
+    }
 
-        $tmpDir = sys_get_temp_dir();
-        $tmpCert = "$tmpDir/$domain.pem";
-        $tmpKey = "$tmpDir/$domain-key.pem";
-
-        $cmd = "mkcert -cert-file $tmpCert -key-file $tmpKey $domain www.$domain";
-
-        $result = Process::run($cmd);
-
-        if (!$result->successful()) {
-            echo "❌ mkcert command failed for $domain\n";
-            echo $result->errorOutput();
-            return false;
-        }
-
-        if (!rename($tmpCert, $certPath) || !rename($tmpKey, $keyPath)) {
-            echo "❌ Failed to move SSL cert/key for $domain\n";
-            return false;
-        }
-
-        chmod($certPath, 0644);
-        chmod($keyPath, 0600);
-
-        echo "✅ Generated SSL cert/key for $domain\n";
-
-        return [$certPath, $keyPath];
+    private function output(string $message): void
+    {
+        echo $message . PHP_EOL;
     }
 }
