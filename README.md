@@ -1,40 +1,38 @@
-
 # DevLet — Local Development Environment Auto-Configurator
 
-**DevLet** is a powerful PHP-based CLI tool for automating the setup of Apache virtual hosts with SSL and PHP-FPM support in local development environments.
+**DevLet** is a PHP-based CLI tool built for Laravel Artisan that automates the configuration of local development environments using Apache, SSL (via mkcert), and PHP-FPM.
 
-It simplifies project onboarding by generating domain mappings, handling SSL with [mkcert](https://github.com/FiloSottile/mkcert), and auto-detecting the required PHP version.
+It streamlines developer onboarding by managing domain setup, certificate generation, and system-level configuration based on a per-project `.devlet` file or `composer.json` fallback.
 
 ---
 
 ## 🚀 Features
 
-- 🔍 **Project Auto-Discovery** — Scans project directories and detects type (e.g., Laravel, plain PHP)
-- 📝 **`.devlet` File Support** — Define custom domains and PHP versions per project
-- 📦 **Composer Integration** — Auto-detects PHP version from `composer.json` if `.devlet` is missing
-- 🔐 **Local SSL with mkcert** — Automatically generates trusted certificates for each domain
-- 🌐 **Apache VirtualHost Generation** — Creates vhost files with proper DocumentRoot, redirects, SSL, and PHP-FPM setup
-- ⚙️ **Hosts File Sync** — Automatically adds the project's domain to `/etc/hosts` (Linux/WSL)
-- 🧠 **www to non-www Redirects** — Configures Apache to redirect `www.domain` → `domain` with HTTPS
+- 🔍 **Project Auto-Discovery** — Scans source directories to detect Laravel or PHP projects
+- 🧾 **`.devlet` Support** — Define project-specific domain and PHP version
+- 📦 **Composer Integration** — Parses `composer.json` to extract PHP version if `.devlet` is missing
+- 🔐 **SSL Certificates with mkcert** — Automatically generates trusted certificates for each domain (supports WSL)
+- 🌐 **Apache VirtualHost Generator** — Generates VHost files with full PHP-FPM, SSL, redirect support
+- 📓 **/etc/hosts Sync** — Adds domain entries to the local `/etc/hosts` file
+- ↪️ **www to non-www Redirects** — Auto-redirect `www.domain` to `domain` securely over HTTPS
+- 🧩 **Laravel 12 Artisan Commands** — Modular Laravel Artisan command structure
 
 ---
 
 ## 📁 Example `.devlet` File
 
-Create a `.devlet` file in the root of your project to customize your local domain and PHP version:
+Define custom domain and PHP version per project:
 
 ```ini
 domain=api.local
 php=8.2
 ```
 
-If this file is not present, DevLet will look inside `composer.json` and extract the PHP version constraint automatically (e.g., `"php": "^8.2"`).
+If this file is missing, DevLet will fallback to `composer.json` and extract `"php": "^8.2"` from `require`.
 
 ---
 
-## 🧪 Apache Config Example
-
-Generated vhost config:
+## 🧪 Example Apache VHost (Generated)
 
 ```apache
 <VirtualHost *:80>
@@ -73,50 +71,57 @@ Generated vhost config:
 
 ---
 
-## ✅ Requirements
+## 🧰 Available Artisan Commands
 
-Before using DevLet, ensure the following are installed and configured:
+### 🛠️ `devlet:os-install`
+Installs necessary packages based on `config/devlet.php`.
+Handles PHP, Apache, SSL tools, and more.
 
-### Apache Modules
+### ✅ `devlet:os-verify`
+Verifies required software and system configuration.
 
-Enable these modules:
+### ⚙️ `devlet:configure`
+Auto-configures VHosts, SSL, hosts file, and PHP-FPM mappings.
 
-```bash
-a2enmod rewrite
-a2enmod ssl
-a2enmod proxy
-a2enmod proxy_fcgi
-```
 ---
 
-## 🔧 How It Works
+## 🧠 How It Works
 
-1. Scan projects in your workspace
+1. Scan all project directories (from config)
 2. Parse `.devlet` or fallback to `composer.json`
-3. Normalize domain names
-4. Generate and trust SSL certificates
-5. Create Apache config files
-6. Enable vhost and reload Apache
-7. Sync `/etc/hosts` to point to your project domain
+3. Normalize and generate domain names
+4. Create and trust SSL certificates (even under WSL)
+5. Write Apache config files using Laravel stubs
+6. Enable site, reload Apache
+7. Update `/etc/hosts` file
 
 ---
 
-## 💡 Notes
+## 📂 Configurable via `config/devlet.php`
 
-- DevLet is designed for **local development** only.
-- SSL files are stored in `/etc/ssl/certs/` and `/etc/ssl/private/`.
-- Config files are named with a `devlet-` prefix.
-- If the project directory is removed, DevLet will automatically clean up related Apache config files.
+- Project source directories
+- Default PHP fallback version
+- Apache vhost path
+- SSL cert locations
+- Auto-reload flags
+
+---
+
+## 🪪 Notes
+
+- DevLet is strictly for **local development**
+- Certificates are stored in `/etc/ssl/certs/` and `/etc/ssl/private/`
+- Apache configs are prefixed with `devlet-`
+- Auto-cleanup stale configs when projects are removed
 
 ---
 
 ## 🤝 Contributing
 
-Contributions, issues, and PRs are welcome!  
-Feel free to fork and improve this tool.
+Pull requests, ideas, and improvements are welcome!
 
 ---
 
 ## 📜 License
 
-MIT License © [Your Name]
+MIT License © Your Name
