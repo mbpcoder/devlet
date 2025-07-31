@@ -2,9 +2,9 @@
 
 return [
 
-    'webserver' => env('DEVLET_WEBSERVER_DRIVER', 'apache'),
+    'webserver' => env('DEVLET_WEBSERVER_DRIVER', 'apache2'),
 
-    'vhost_roots' => explode(',', env('DEVLET_VHOST_ROOTS')),
+    'vhost_roots' => explode(',', env('DEVLET_VHOST_ROOTS', '')),
 
     'vhost_prefix' => 'devlet-auto-',
 

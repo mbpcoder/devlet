@@ -26,3 +26,25 @@ function getWslIp(): ?string
 
     return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : null;
 }
+
+function normalizeDomain(string $name): string
+{
+    // Convert CamelCase or PascalCase to kebab-case
+    $kebab = preg_replace('/([a-z])([A-Z])/', '$1-$2', $name);
+    $kebab = preg_replace('/([A-Z])([A-Z][a-z])/', '$1-$2', $kebab);
+
+    // Replace . and _ with -
+    $kebab = str_replace(['.', '_'], '-', $kebab);
+
+    // Convert to lowercase
+    $kebab = strtolower($kebab);
+
+    // Remove duplicate dashes
+    $kebab = preg_replace('/-+/', '-', $kebab);
+
+    if (str_contains($name, '.')) {
+        return $kebab;
+    }
+
+    return $kebab . '.local';
+}

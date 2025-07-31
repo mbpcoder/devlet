@@ -28,6 +28,7 @@ readonly class WebServerService implements IWebServer
 
         return match ($name) {
             'apache' => new Apache($this->os),
+            'apache2' => new Apache($this->os),
             'nginx' => new Nginx($this->os),
             default => throw new InvalidArgumentException("Unsupported web server driver: {$name}"),
         };

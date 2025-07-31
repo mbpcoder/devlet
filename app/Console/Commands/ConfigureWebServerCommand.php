@@ -5,8 +5,11 @@ namespace App\Console\Commands;
 use App\Exceptions\SSLGenerationException;
 use App\Models\Project;
 use App\Services\ApacheService;
+use App\Services\ComposerService;
+use App\Services\DotDevletFileService;
 use App\Services\HostsService;
 use App\Services\ProjectDetector;
+use App\Services\ProjectInfoService;
 use App\Services\SSLService;
 use Illuminate\Console\Command;
 
@@ -20,7 +23,9 @@ class ConfigureWebServerCommand extends Command
     private HostsService $hostsService;
     private SSLService $sslService;
     private ApacheService $apacheService;
-    private ProjectDetector $detector;
+    private ProjectInfoService $projectInfoService;
+    private DotDevletFileService $dotDevletFileService;
+    private ComposerService $composerService;
 
     public function handle()
     {
@@ -29,7 +34,9 @@ class ConfigureWebServerCommand extends Command
         $this->hostsService = new HostsService();
         $this->sslService = new SSLService();
         $this->apacheService = new ApacheService();
-        $this->detector = new ProjectDetector();
+        $this->projectInfoService = new ProjectInfoService();
+        $this->dotDevletFileService = new DotDevletFileService();
+        $this->composerService = new ComposerService();
 
         $activeDomains = [];
 
@@ -41,13 +48,13 @@ class ConfigureWebServerCommand extends Command
 
                 $this->info('📁 Project: ' . $projectPath);
 
-                $config = $this->parseDevletFile($projectPath);
+                $config = $this->dotDevletFileService->parse($projectPath);
 
-                $phpVersion = $config['php'] ?? $this->detectPhpVersionFromComposer($projectPath) ?? phpversion();
-                $domain = $config['domain'] ?? $this->normalizeDomain(basename($projectPath));
+                $phpVersion = $config['php'] ?? $this->composerService->detectPhpVersion($projectPath) ?? phpversion();
+                $domain = $config['domain'] ?? normalizeDomain(basename($projectPath));
 
-                $type = $this->detector->detect($projectPath);
-                $docRoot = $this->detector->getDocRoot($type, $projectPath, $config['public_path']);
+                $type = $this->projectInfoService->detectFramework($projectPath);
+                $docRoot = $this->projectInfoService->resolveDocumentRoot($type, $projectPath, $config['public_path']);
 
                 $this->info("🔍 Detected project type: $type");
 
@@ -86,87 +93,5 @@ class ConfigureWebServerCommand extends Command
         $this->info('Web server configuration completed');
 
         return self::SUCCESS;
-    }
-
-    private function parseDevletFile(string $projectPath): array
-    {
-        $config = [
-            'php' => null,
-            'domain' => null,
-            'public_path' => null,
-        ];
-        $file = $projectPath . '/.devlet';
-
-        if (!file_exists($file)) {
-            return $config;
-        }
-
-
-        $this->info('🔍 Found .devlet file');
-        $ini = parse_ini_file($file);
-
-        if (isset($ini['domain']) && is_string($ini['domain']) && trim($ini['domain']) !== '') {
-            $config['domain'] = $this->normalizeDomain(trim($ini['domain']));
-            $this->info("🔗 Using domain from config: {$config['domain']}");
-        }
-
-        if (isset($ini['php']) && is_string($ini['php'])) {
-            $config['php'] = trim($ini['php']);
-            $this->info("🧪 Using PHP from config: {$config['php']}");
-        }
-
-        if (isset($ini['public_path']) && is_string($ini['public_path']) && trim($ini['public_path']) !== '') {
-            $config['public_path'] = trim($ini['public_path']);
-            $this->info("📂 Using public path from config: {$config['public_path']}");
-        }
-
-        return $config;
-    }
-
-
-    private function detectPhpVersionFromComposer(string $projectPath): ?string
-    {
-        $composerFile = $projectPath . '/composer.json';
-        if (!file_exists($composerFile)) {
-            return null;
-        }
-
-        $json = json_decode(file_get_contents($composerFile), true);
-        if (!isset($json['require']['php'])) {
-            return null;
-        }
-
-        $phpConstraint = $json['require']['php'];
-        preg_match('/(\d+\.\d+)/', $phpConstraint, $matches);
-        if (!isset($matches[1])) {
-            return null;
-        }
-
-        $version = $matches[1];
-        $this->info("🧪 Detected PHP version from composer.json: $version");
-
-        return $version;
-    }
-
-    private function normalizeDomain(string $name): string
-    {
-        // Convert CamelCase or PascalCase to kebab-case
-        $kebab = preg_replace('/([a-z])([A-Z])/', '$1-$2', $name);
-        $kebab = preg_replace('/([A-Z])([A-Z][a-z])/', '$1-$2', $kebab);
-
-        // Replace . and _ with -
-        $kebab = str_replace(['.', '_'], '-', $kebab);
-
-        // Convert to lowercase
-        $kebab = strtolower($kebab);
-
-        // Remove duplicate dashes
-        $kebab = preg_replace('/-+/', '-', $kebab);
-
-        if (str_contains($name, '.')) {
-            return $kebab;
-        }
-
-        return $kebab . '.local';
     }
 }
