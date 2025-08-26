@@ -6,23 +6,10 @@ use Illuminate\Console\Command;
 
 class VerifyOSCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'devlet:os-verify';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Verify Installing Packages and Dependencies';
 
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
         $packageManager = $this->detectPackageManager();
