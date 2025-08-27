@@ -19,6 +19,7 @@ class HostsTable
                     ->searchable(),
 
                 TextColumn::make('full_path')
+                    ->hidden()
                     ->searchable(),
 
                 TextColumn::make('php_version')
@@ -28,6 +29,7 @@ class HostsTable
                     ->searchable(),
 
                 TextColumn::make('document_root')
+                    ->hidden()
                     ->searchable(),
 
                 TextColumn::make('web_server'),
