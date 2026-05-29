@@ -2,6 +2,7 @@
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+/devlet
 .DS_Store
 .env
 .env.backup
