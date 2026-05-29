@@ -1,10 +1,6 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## What DevLet Is
 
-DevLet is a **local development environment manager** — the goal is Laragon-like UX for Linux/WSL/Windows. It automates Apache VirtualHost creation, SSL certificates via mkcert, PHP-FPM routing, and `/etc/hosts` management per project. It is a Laravel 12 Artisan application with a Filament 5 admin panel, intended to ship as a PHAR binary.
+DevLet is a **local development environment manager** — the goal is Laragon-like UX for Linux/WSL/Windows. It automates Apache VirtualHost creation, SSL certificates via mkcert, PHP-FPM routing, and `/etc/hosts` management per project. It is a Laravel 12 Artisan application with a Filament 5 admin panel.
 
 ## Commands
 
